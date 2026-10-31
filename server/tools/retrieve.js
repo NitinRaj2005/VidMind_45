@@ -15,6 +15,12 @@ export const retrieveTool = tool(
       content:   r.content,
       video_id:  r.metadata?.video_id,
       rrf_score: r.rrfScore.toFixed(4),
+      start_seconds: r.metadata?.start_seconds ?? null,
+      end_seconds: r.metadata?.end_seconds ?? null,
+      source_url: r.metadata?.url ?? null,
+      timestamp_url: Number.isFinite(Number(r.metadata?.start_seconds)) && r.metadata?.url
+        ? r.metadata.url + (r.metadata.url.includes('?') ? '&' : '?') + 't=' + Math.floor(Number(r.metadata.start_seconds)) + 's'
+        : null,
       vec_rank:  r.vecRank  ?? 'N/A',
       bm25_rank: r.bm25Rank ?? 'N/A',
     }));
@@ -26,7 +32,7 @@ export const retrieveTool = tool(
     description: `
       Retrieve the most relevant transcript chunks for a query using Hybrid Search
       (BM25 full-text + cosine vector similarity, fused with Reciprocal Rank Fusion).
-      Always prefer this over any other retrieval method.
+      Always prefer this over any other retrieval method. When timestamps are present, return start_seconds, end_seconds, and timestamp_url exactly as provided.
       If video_id is known, pass it to scope the search to that video.
     `,
 schema: z.object({

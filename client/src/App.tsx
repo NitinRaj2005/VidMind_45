@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import './index.css';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   id: number;
@@ -130,7 +132,11 @@ function App() {
               <div className='message-avatar'>
                 {message.isUser ? 'You' : 'AI'}
               </div>
-              <div className='message-content'>{message.text}</div>
+              <div className={`message-content ${message.isUser ? '' : 'markdown'}`}>
+                {message.isUser ? message.text : (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.text}</ReactMarkdown>
+                )}
+              </div>
             </div>
           ))
         )}

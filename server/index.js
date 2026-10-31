@@ -38,7 +38,7 @@ app.post('/generate', async (req, res) => {
       const historyText = previousMessages
         .map(message => typeof message.content === 'string' ? message.content : '')
         .join(' ');
-      const urlMatch = historyText.match(/https?:\\/\\/[^\\s)]+/i);
+      const urlMatch = historyText.match(/https?:\/\/[^\s)]+/i);
       let videoId = null;
       let videoUrl = urlMatch?.[0]?.replace(/[.,]+$/, '') || null;
       if (videoUrl) {

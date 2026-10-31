@@ -32,7 +32,7 @@ const SYSTEM_PROMPT = `You are VidMind, an intelligent YouTube knowledge assista
 - Keep answers concise and structured.`;
 
 const llm = new ChatGroq({
-  model: "qwen/qwen3.6-27b",
+  model: "llama-3.3-70b-versatile",
   apiKey: process.env.GROQ_API_KEY,
   temperature: 0.2,
 });

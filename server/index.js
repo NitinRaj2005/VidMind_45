@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { agent } from './agent.js';
+import { refreshVideoTimestamps } from './tools/scrape.js';
 import { addYTVideoToVectorStore, pool } from './embeddings.js';
 
 const port = process.env.PORT || 3000;
@@ -27,9 +28,47 @@ app.post('/generate', async (req, res) => {
   const threadId = String(thread_id ?? Date.now());
 
   try {
+    const config = { configurable: { thread_id: threadId } };
+    const wantsTimestamps = /timestamp|time.?stamp|mm:ss|hh:mm:ss|video time/i.test(query);
+    let previousMessages = [];
+
+    if (wantsTimestamps) {
+      const state = await agent.getState(config);
+      previousMessages = state.values?.messages ?? [];
+      const historyText = previousMessages
+        .map(message => typeof message.content === 'string' ? message.content : '')
+        .join(' ');
+      const urlMatch = historyText.match(/https?:\\/\\/(?:www\\.)?(?:youtube\\.com\\/(?:watch\\?v=|shorts\\/|embed\\/|live\\/)|youtu\\.be\\/)[^\\s)]+/i);
+      const idMatch = historyText.match(/(?:v=|youtu\\.be\\/|shorts\\/|embed\\/|live\\/)([A-Za-z0-9_-]{11})/);
+      let videoId = idMatch?.[1] || null;
+      let videoUrl = urlMatch?.[0] || null;
+
+      // If the conversation has no URL, use the most recently indexed video.
+      if (!videoId) {
+        const { rows } = await pool.query(
+          'SELECT video_id, url FROM videos ORDER BY added_at DESC LIMIT 1'
+        );
+        videoId = rows[0]?.video_id || null;
+        videoUrl = rows[0]?.url || null;
+      }
+
+      if (videoId) {
+        try {
+          const refresh = await refreshVideoTimestamps(videoId, videoUrl);
+          if (!refresh.timestamps_available) {
+            console.warn('[timestamps] exact timestamps unavailable for', videoId);
+          }
+        } catch (error) {
+          console.warn('[timestamps] direct refresh failed:', error.message);
+        }
+      } else {
+        console.warn('[timestamps] could not identify the video for timestamp refresh');
+      }
+    }
+
     const result = await agent.invoke(
       { messages: [{ role: 'user', content: query }] },
-      { configurable: { thread_id: threadId } }
+      config
     );
 
     const answer = result.messages.at(-1)?.content ?? '';

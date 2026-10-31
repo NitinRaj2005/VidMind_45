@@ -9,6 +9,29 @@ interface Message {
   isUser: boolean;
 }
 
+interface Conversation {
+  threadId: number;
+  title: string;
+  messages: Message[];
+  updatedAt: number;
+}
+
+const HISTORY_KEY = 'vidmind-chat-history';
+
+const loadConversations = (): Conversation[] => {
+  try {
+    const saved = localStorage.getItem(HISTORY_KEY);
+    return saved ? JSON.parse(saved) as Conversation[] : [];
+  } catch {
+    return [];
+  }
+};
+
+const getConversationTitle = (messages: Message[]) => {
+  const firstQuestion = messages.find((message) => message.isUser)?.text || 'New conversation';
+  return firstQuestion.length > 42 ? `${firstQuestion.slice(0, 42).trim()}…` : firstQuestion;
+};
+
 const suggestions = [
   'Summarize this video in simple words',
   'Explain the key concepts step by step',
@@ -21,10 +44,11 @@ const getYouTubeId = (value: string) => {
 };
 
 function App() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>(loadConversations);
+  const [threadId, setThreadId] = useState<number>(() => conversations[0]?.threadId ?? Date.now());
+  const [messages, setMessages] = useState<Message[]>(() => conversations[0]?.messages ?? []);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [threadId, setThreadId] = useState<number>(Date.now());
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
       return localStorage.getItem('vidmind-theme') === 'dark' ? 'dark' : 'light';
@@ -44,6 +68,26 @@ function App() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  // Keep a local copy so previous conversations remain available after refresh.
+  useEffect(() => {
+    if (!messages.length) return;
+    const updatedConversation: Conversation = {
+      threadId,
+      title: getConversationTitle(messages),
+      messages,
+      updatedAt: Date.now(),
+    };
+    setConversations((previous) => {
+      const next = [updatedConversation, ...previous.filter((item) => item.threadId !== threadId)]
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .slice(0, 30);
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch (error) {
+        console.warn('Unable to save VidMind chat history:', error);
+      }
+      return next;
+    });
+  }, [messages, threadId]);
 
   const videoId = useMemo(() => {
     const allText = [...messages.map((message) => message.text), inputText].join(' ');
@@ -100,6 +144,27 @@ function App() {
     inputRef.current?.focus();
   };
 
+  const openConversation = (conversation: Conversation) => {
+    if (isLoading) return;
+    setThreadId(conversation.threadId);
+    setMessages(conversation.messages);
+    setInputText('');
+    setSidebarOpen(false);
+  };
+
+  const deleteConversation = (event: React.MouseEvent<HTMLButtonElement>, id: number) => {
+    event.stopPropagation();
+    const next = conversations.filter((conversation) => conversation.threadId !== id);
+    setConversations(next);
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch (error) {
+      console.warn('Unable to update VidMind chat history:', error);
+    }
+    if (threadId === id) {
+      setMessages([]);
+      setThreadId(Date.now());
+    }
+  };
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -131,12 +196,18 @@ function App() {
             <div className="nav-item nav-static"><span className="nav-icon">◷</span> Current conversation</div>
           </div>
           <div className="recent-section">
-            <span className="nav-caption">Recent questions</span>
-            {recentQuestions.length ? recentQuestions.map((message) => (
-              <button className="recent-item" key={message.id} title={message.text} onClick={() => { setInputText(message.text); inputRef.current?.focus(); setSidebarOpen(false); }}>
-                <span>▢</span><span>{message.text}</span>
-              </button>
-            )) : <p className="sidebar-empty">Your questions will appear here during this chat.</p>}
+            <div className="history-heading">
+              <span className="nav-caption">Chat history</span>
+              {conversations.length > 0 && <span className="history-count">{conversations.length}</span>}
+            </div>
+            {conversations.length ? conversations.map((conversation) => (
+              <div className={`history-entry ${conversation.threadId === threadId ? 'selected' : ''}`} key={conversation.threadId}>
+                <button className="recent-item" title={conversation.title} onClick={() => openConversation(conversation)} disabled={isLoading}>
+                  <span>◷</span><span>{conversation.title}</span>
+                </button>
+                <button className="delete-chat-button" title="Delete conversation" aria-label={`Delete ${conversation.title}`} onClick={(event) => deleteConversation(event, conversation.threadId)}>×</button>
+              </div>
+            )) : <p className="sidebar-empty">Your saved conversations will appear here.</p>}
           </div>
         </div>
 

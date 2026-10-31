@@ -94,12 +94,7 @@ function App() {
     return getYouTubeId(allText);
   }, [messages, inputText]);
 
-  const recentQuestions = messages
-    .filter((message) => message.isUser)
-    .slice(-5)
-    .reverse();
-
-  const sendMessage = async (text = inputText) => {
+const sendMessage = async (text = inputText) => {
     const trimmedText = text.trim();
     if (!trimmedText || isLoading) return;
 

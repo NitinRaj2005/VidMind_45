@@ -219,3 +219,17 @@ button:focus-visible, a:focus-visible, textarea:focus-visible { outline: 3px sol
   .conversation-heading h1 { font-size: 21px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+
+.history-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 10px 6px; }
+.history-heading .nav-caption { padding: 0; }
+.history-count { display: grid; place-items: center; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 20px; background: var(--surface-muted); color: var(--text-faint); font-size: 9px; }
+.history-entry { display: flex; align-items: center; gap: 2px; min-width: 0; border-radius: 8px; }
+.history-entry.selected { background: var(--accent-soft); }
+.history-entry.selected .recent-item { color: var(--accent); font-weight: 700; }
+.history-entry .recent-item { flex: 1; min-width: 0; }
+.history-entry .recent-item:disabled { cursor: default; opacity: .7; }
+.delete-chat-button { flex: 0 0 26px; width: 26px; height: 28px; margin-right: 5px; border: 0; border-radius: 6px; background: transparent; color: var(--text-faint); font-size: 17px; opacity: 0; transition: opacity .15s, background .15s, color .15s; }
+.history-entry:hover .delete-chat-button, .history-entry:focus-within .delete-chat-button { opacity: 1; }
+.delete-chat-button:hover { background: var(--surface-muted); color: #d34b5b; }
+@media (hover: none) { .delete-chat-button { opacity: 1; } }

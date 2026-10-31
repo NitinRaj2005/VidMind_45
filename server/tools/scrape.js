@@ -1,10 +1,9 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
-import transcriptClient from 'get-yt-transcript';
+import { fetchTranscript } from 'youtube-transcript';
 import { triggerYoutubeVideoScrape } from '../brightdata.js';
 import { addYTVideoToVectorStore } from '../embeddings.js';
 
-const { getTranscript } = transcriptClient;
 
 const extractVideoId = (url) => {
   try {
@@ -23,15 +22,22 @@ const extractVideoId = (url) => {
 // for timestamps. This avoids relying on the LLM to decide whether to call a tool.
 export const refreshVideoTimestamps = async (videoId, videoUrl) => {
   if (!videoId) throw new Error('A YouTube video ID is required for timestamp refresh');
-  const timedTranscript = await getTranscript(videoId);
-  if (!timedTranscript?.available || !Array.isArray(timedTranscript.segments) || !timedTranscript.segments.length) {
+  const captionLines = await fetchTranscript(videoId);
+  if (!Array.isArray(captionLines) || !captionLines.length) {
     console.warn('[timestamps] no timed captions available:', videoId);
     return { timestamps_available: false, video_id: videoId };
   }
-  console.log('[timestamps] timed captions found:', videoId, timedTranscript.segments.length);
+  // youtube-transcript returns offset and duration in milliseconds.
+  const segments = captionLines.map(line => ({
+    start: Number(line.offset) / 1000,
+    duration: Number(line.duration) / 1000,
+    text: line.text,
+  })).filter(line => Number.isFinite(line.start) && line.text);
+  if (!segments.length) return { timestamps_available: false, video_id: videoId };
+  console.log('[timestamps] timed captions found:', videoId, segments.length);
   const result = await addYTVideoToVectorStore({
-    transcript: timedTranscript.text || timedTranscript.segments.map(s => s.text).join(' '),
-    segments: timedTranscript.segments,
+    transcript: captionLines.map(line => line.text).join(' '),
+    segments,
     video_id: videoId,
     url: videoUrl || `https://www.youtube.com/watch?v=${videoId}`,
     force: true,
@@ -55,9 +61,13 @@ export const triggerScrapeTool = tool(
         : Array.isArray(video.transcript) ? video.transcript : [];
       if (!segments.length && videoId) {
         try {
-          const timedTranscript = await getTranscript(videoId);
-          if (timedTranscript.available && timedTranscript.segments?.length) {
-            segments = timedTranscript.segments;
+          const captionLines = await fetchTranscript(videoId);
+          if (Array.isArray(captionLines) && captionLines.length) {
+            segments = captionLines.map(line => ({
+              start: Number(line.offset) / 1000,
+              duration: Number(line.duration) / 1000,
+              text: line.text,
+            })).filter(line => Number.isFinite(line.start) && line.text);
             console.log('[scrape] timestamped captions found:', videoId, segments.length);
           } else console.warn('[scrape] captions have no timestamp segments:', videoId);
         } catch (error) {

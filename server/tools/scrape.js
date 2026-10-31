@@ -1,6 +1,7 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
-import { getTranscript } from 'get-yt-transcript';
+import transcriptClient from 'get-yt-transcript';
+const { getTranscript } = transcriptClient;
 import { triggerYoutubeVideoScrape } from '../brightdata.js';
 import { addYTVideoToVectorStore } from '../embeddings.js';
 

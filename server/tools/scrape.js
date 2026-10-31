@@ -1,9 +1,23 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import transcriptClient from 'get-yt-transcript';
-const { getTranscript } = transcriptClient;
 import { triggerYoutubeVideoScrape } from '../brightdata.js';
 import { addYTVideoToVectorStore } from '../embeddings.js';
+
+const { getTranscript } = transcriptClient;
+
+const extractVideoId = (url) => {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes('youtu.be')) return parsed.pathname.slice(1).split('/')[0];
+    if (parsed.searchParams.get('v')) return parsed.searchParams.get('v');
+    const parts = parsed.pathname.split('/').filter(Boolean);
+    const marker = parts.findIndex(part => ['shorts', 'embed', 'live'].includes(part));
+    return marker >= 0 ? parts[marker + 1] : null;
+  } catch {
+    return null;
+  }
+};
 
 export const triggerScrapeTool = tool(
   async ({ url, force_timestamp_refresh = false }) => {
@@ -14,7 +28,7 @@ export const triggerScrapeTool = tool(
     console.log('[scrape] total videos:', result.length, '| with transcript:', videos.length);
     const summaries = await Promise.all(videos.map(async (video) => {
       const videoUrl = video.input?.url || video.url || url;
-      const videoId = video.id || video.video_id || new URL(videoUrl).searchParams.get('v');
+      const videoId = video.id || video.video_id || extractVideoId(videoUrl);
       let segments = Array.isArray(video.segments) ? video.segments
         : Array.isArray(video.transcript_segments) ? video.transcript_segments
         : Array.isArray(video.transcript) ? video.transcript : [];

@@ -38,10 +38,22 @@ app.post('/generate', async (req, res) => {
       const historyText = previousMessages
         .map(message => typeof message.content === 'string' ? message.content : '')
         .join(' ');
-      const urlMatch = historyText.match(/https?:\\/\\/(?:www\\.)?(?:youtube\\.com\\/(?:watch\\?v=|shorts\\/|embed\\/|live\\/)|youtu\\.be\\/)[^\\s)]+/i);
-      const idMatch = historyText.match(/(?:v=|youtu\\.be\\/|shorts\\/|embed\\/|live\\/)([A-Za-z0-9_-]{11})/);
-      let videoId = idMatch?.[1] || null;
-      let videoUrl = urlMatch?.[0] || null;
+      const urlMatch = historyText.match(/https?:\\/\\/[^\\s)]+/i);
+      let videoId = null;
+      let videoUrl = urlMatch?.[0]?.replace(/[.,]+$/, '') || null;
+      if (videoUrl) {
+        try {
+          const parsedUrl = new URL(videoUrl);
+          videoId = parsedUrl.searchParams.get('v');
+          if (!videoId) {
+            const parts = parsedUrl.pathname.split('/').filter(Boolean);
+            const marker = parts.findIndex(part => ['shorts', 'embed', 'live'].includes(part));
+            videoId = marker >= 0 ? parts[marker + 1] : (parsedUrl.hostname.includes('youtu.be') ? parts[0] : null);
+          }
+        } catch {
+          videoId = null;
+        }
+      }
 
       // If the conversation has no URL, use the most recently indexed video.
       if (!videoId) {

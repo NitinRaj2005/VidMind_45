@@ -19,6 +19,27 @@ const extractVideoId = (url) => {
   }
 };
 
+// Direct timestamp refresh path used by /generate when the user explicitly asks
+// for timestamps. This avoids relying on the LLM to decide whether to call a tool.
+export const refreshVideoTimestamps = async (videoId, videoUrl) => {
+  if (!videoId) throw new Error('A YouTube video ID is required for timestamp refresh');
+  const timedTranscript = await getTranscript(videoId);
+  if (!timedTranscript?.available || !Array.isArray(timedTranscript.segments) || !timedTranscript.segments.length) {
+    console.warn('[timestamps] no timed captions available:', videoId);
+    return { timestamps_available: false, video_id: videoId };
+  }
+  console.log('[timestamps] timed captions found:', videoId, timedTranscript.segments.length);
+  const result = await addYTVideoToVectorStore({
+    transcript: timedTranscript.text || timedTranscript.segments.map(s => s.text).join(' '),
+    segments: timedTranscript.segments,
+    video_id: videoId,
+    url: videoUrl || `https://www.youtube.com/watch?v=${videoId}`,
+    force: true,
+  });
+  console.log('[timestamps] refresh result:', videoId, result.timestamps_available);
+  return result;
+};
+
 export const triggerScrapeTool = tool(
   async ({ url, force_timestamp_refresh = false }) => {
     console.log('[agent] triggering scrape for', url);

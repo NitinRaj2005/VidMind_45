@@ -4,7 +4,7 @@ A production-grade YouTube RAG (Retrieval-Augmented Generation) system that lets
 
 ## 🚀 Live Demo
 
-[https://vid-mind-seven.vercel.app/](https://vid-mind-seven.vercel.app/)
+[https://vid-mind-seven.vercel.app/](vid-mind-45.vercel.app/)
 
 > Note: the backend runs on Render's free tier, which spins down after 15 minutes of inactivity. The first request after idle may take 30-50s to respond while it wakes up.
 

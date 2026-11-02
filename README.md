@@ -8,9 +8,6 @@ A production-grade YouTube RAG (Retrieval-Augmented Generation) system that lets
 
 > Note: the backend runs on Render's free tier, which spins down after 15 minutes of inactivity. The first request after idle may take 30-50s to respond while it wakes up.
 
-## 🎥 Project Demo
-
-[▶ Watch Demo Video](https://drive.google.com/file/d/1I4jxmepFoZvp2ZlaI6AQn8hK5ekBkF8-/view?usp=sharing)
 
 ## Tech Stack
 
